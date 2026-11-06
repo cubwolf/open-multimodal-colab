@@ -32,17 +32,32 @@
 | 欄位 | 用在 | 說明 |
 |---|---|---|
 | `id` | 全部 | 英數、`-`、`_`；也是輸出檔名 |
-| `type` | 全部 | `image`／`video` |
+| `type` | 全部 | `image`／`video`／`tts`／`talk` |
 | `prompt` | 全部 | 見 prompt-guide.md |
-| `inputs` | image、video | image：0 張＝文生圖，1–4 張＝編輯（第 1 張是要改的那張）。video：0 張＝文生影片，1 張＝第一格 |
+| `inputs` | image、video、talk | talk：1 張人物圖。image：0 張＝文生圖，1–4 張＝編輯（第 1 張是要改的那張）。video：0 張＝文生影片，1 張＝第一格 |
 | `aspect` | image、video | image：`auto`（編輯時跟第 1 張同比例；文生圖等於 `1:1`）、`1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`21:9`。video：`16:9`（預設）、`9:16`、`1:1`、`4:3`、`3:4` |
 | `size` | image | `1K`（預設）、`1.5K`、`2K` |
 | `seconds` | video | 1–5，預設 5 |
-| `resolution` | video | `720P`（預設，1280×704）、`480P`（832×480） |
+| `resolution` | video、talk | video 預設 `720P`（1280×704），talk 預設 `480P`；`480P` 是 832×480（16:9） |
 | `negative` | video | 不要出現的東西；不給就用 Wan 官方範本的預設 |
 | `steps` | 全部 | 進階：文生圖預設 8、編輯 4、影片 20 |
 | `seed` | 全部 | 不給就隨機，實際用的 seed 會寫進 `results.json`；要重現就固定 |
-| `timeout` | video | 單段等待上限（秒），預設 2400 |
+| `timeout` | video、talk | 單段等待上限（秒），video 預設 2400、talk 3600 |
+| `extend` | video | `@<id>` 或影片檔：用它的最後一格當起點，成品接在它後面（不能再給 `inputs`）。`"join": false` 只要新的那段 |
+| `voice` | tts | 聲音描述（性別、年齡、語氣） |
+| `voices` | tts | 1 段參考錄音（複製音色）；`voice_text` 可填錄音內容，會更像 |
+| `language` | tts | 預設 `Chinese` |
+| `audio` | talk | 語音檔或 `@<tts 的 id>` |
+| `trim_to_audio` | talk | 預設 `true`：裁掉語音結束後多出來的畫面 |
+
+說話影片範例：
+```json
+{"id": "line01", "type": "tts", "prompt": "大家好，很高興認識你。", "voice": "溫和的中年男性，語速適中，親切"},
+{"id": "say01", "type": "talk", "inputs": ["inputs/me.png"], "audio": "@line01",
+ "prompt": "A friendly man facing the camera introduces himself, natural head movement and hand gestures"},
+{"id": "walk01", "type": "video", "extend": "@say01", "seconds": 5, "resolution": "480P", "aspect": "3:4",
+ "prompt": "He walks happily to the right, then turns his head to the camera and waves"}
+```
 
 批次層級：`gpu`（`L4`、`G4`、`A100`、`H100`）、`stop_on_error`、`tier`（強制 `high`／`low`，通常不用填）。
 

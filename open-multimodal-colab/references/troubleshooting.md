@@ -38,7 +38,9 @@
 | 圖片編輯沒有照參考圖 | 提示詞裡明確說「image 1 的人」「image 2 的背景」；要改的那張放第一張 |
 | 本機 `out of memory` | 改 480P、縮短秒數；確認 `check` 判斷的是 `low` 等級；關掉其他吃顯存的程式 |
 | 本機 `UnetLoaderGGUF` 不認得 | `setup` 裝的 ComfyUI-GGUF 還沒裝套件或沒重開 ComfyUI：照 `setup` 印出的指令做 |
-| 進度一直停在 `models` | 第一次要下載這批需要的模型（每種功能約 13–18 GB）；超過 15 分鐘看 Hugging Face 狀態 |
+| 進度一直停在 `models` | 第一次要下載這批需要的模型（每種功能約 13–18 GB，說話影片約 26 GB）；超過 15 分鐘看 Hugging Face 狀態 |
+| 配音失敗：`No module named ensurepip` 或 `torchvision::nms does not exist` | 舊版的安裝方式造成的，這版已改用 uv 而且不動 torch。還是失敗就刪掉 `/content/ttsenv` 再跑 |
+| 說話影片比預期長 | 片長跟著語音走；縮短台詞 |
 
 ## 想看遠端的完整紀錄
 ```

@@ -1,6 +1,6 @@
 # 提示詞寫法
 
-三個模型都吃自然語言，中英文都可以，**英文通常比較穩**。寫具體的畫面，不要寫抽象形容詞。
+這些模型都吃自然語言，中英文都可以，**英文通常比較穩**。寫具體的畫面，不要寫抽象形容詞。
 
 ## 文生圖（Z-Image-Turbo）
 - 順序：主體 → 外觀細節 → 動作／姿勢 → 場景 → 光線 → 鏡頭與構圖 → 風格。
@@ -25,3 +25,15 @@
 - `negative` 可以加不要的東西；不給就用官方範本的預設（避免字幕、靜止畫面、畸形手指等）。
 - 範例：
   `A street musician in a worn leather jacket plays guitar in a retro subway station. Commuters hurry past him and a small crowd slowly gathers. Slow push-in from a medium shot to a close-up of his hands. Warm, dim lighting with soft film grain.`
+
+## 影片延伸（`extend`）
+- 新的一段從前一段的**最後一格**開始，提示詞只寫接下來的動作。
+- 有先後順序的動作要寫得很明確，並用時間詞串起來：
+  `The man walks to the right side of the frame, facing his walking direction. After two steps he turns his head toward the camera while still walking, smiles and waves his right hand.`
+  實測時「先朝右走、再轉頭看鏡頭」的順序不明顯；寫得更具體，或換 seed 再試。
+- 方向用畫面的方向（`to the right side of the frame`），不要用人物自己的左右。
+
+## 配音（Qwen3-TTS）與說話影片（S2V）
+- `voice` 一定寫性別、年齡、語氣、語速，例如 `溫和親切的中年男性，語速適中，帶著笑意`。
+- 說話影片的提示詞寫表情和手勢，不用寫嘴型：`A friendly man introduces himself to the camera with a warm smile and natural hand gestures, static shot`。
+- 片長跟著語音走，要控制長度就調整台詞字數。

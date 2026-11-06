@@ -32,15 +32,25 @@ def test_tiers_and_files():
         pass
     for feature, tiers in M.FEATURES.items():
         for tier, roles in tiers.items():
-            assert set(roles) == {"unet", "clip", "vae"}, (feature, tier)
+            if feature == "tts":
+                assert roles == {}
+                continue
+            assert {"unet", "clip", "vae"} <= set(roles), (feature, tier)
             assert all(k in M.FILES for k in roles.values())
     low = [f[1] for f in M.files_for(["video"], "low")]
     assert any(n.endswith(".gguf") for n in low)
+    assert "low" not in M.FEATURES["talk"]
+    try:
+        M.files_for(["talk"], "low")
+        raise AssertionError("talk must need the high tier")
+    except RuntimeError:
+        pass
+    assert G.talk_chunks(4.8) == 1 and G.talk_chunks(11) == 3
     assert M.feature_of({"type": "image"}) == "t2i" and M.feature_of({"type": "image", "inputs": ["a"]}) == "edit"
 
 
 def test_graph_links_resolve():
-    m = {f: M.FEATURES[f]["low"] for f in M.FEATURES}
+    m = {f: M.FEATURES[f].get("low", {}) for f in M.FEATURES}
     graphs = [G.t2i({"id": "a", "prompt": "x"}, m["t2i"]), G.edit({"id": "b", "prompt": "x"}, m["edit"], ["a.png", "b.png"]),
               G.video({"id": "c", "prompt": "x"}, m["video"], "a.png"), G.video({"id": "d", "prompt": "x"}, m["video"])]
     for g, out in graphs:
@@ -61,8 +71,13 @@ def test_manifest_validation():
                          {"id": "clip", "type": "video", "prompt": "walks", "inputs": ["@pic"], "seconds": 5}]}
         (d / "m.json").write_text(json.dumps(good))
         omrun.load_manifest(d / "m.json")
+        talk = {"jobs": [{"id": "line", "type": "tts", "prompt": "大家好", "voice": "adult man"},
+                         {"id": "say", "type": "talk", "prompt": "he talks", "inputs": ["inputs/a.png"], "audio": "@line"},
+                         {"id": "more", "type": "video", "prompt": "walks", "extend": "@say"}]}
+        (d / "m.json").write_text(json.dumps(talk))
+        omrun.load_manifest(d / "m.json")
         bad = {"jobs": [{"id": "clip", "type": "video", "prompt": "x", "seconds": 9, "inputs": ["@later", "inputs/a.png"]},
-                        {"id": "img", "type": "tts", "prompt": "x"}]}
+                        {"id": "img", "type": "music", "prompt": "x"}]}
         (d / "m.json").write_text(json.dumps(bad))
         try:
             omrun.load_manifest(d / "m.json")

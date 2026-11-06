@@ -7,13 +7,13 @@ You were asked to install **open-multimodal-colab**. Follow these steps in order
 Before installing anything, explain in the user's language:
 
 1. **What it does**: it lets you (the agent) generate and edit pictures and make short silent videos with
-   open models (Z-Image-Turbo, FLUX.2 klein 4B, Wan 2.2; Apache 2.0, no attribution on the output) on
+   open models (Z-Image-Turbo, FLUX.2 klein 4B, Wan 2.2, Qwen3-TTS; Apache 2.0, no attribution on the output) on
    **the user's own Google Colab GPU**. You write the prompts; Colab does the work;
    the files come back to this computer; the GPU is released afterwards.
 2. **Subscription**: at least **Google AI Pro** (it includes Colab compute units). AI Plus is not enough.
 3. **Cost**: L4 ≈ 1.5 units per hour (about an RTX 4060), G4 ≈ 11 units per hour (about an RTX Pro 6000).
    AI Pro gives about 400 units a month. Every start installs ComfyUI and downloads the models the batch needs
-   (about 13–18 GB per feature) **on Colab**, not on this computer.
+   (about 13–18 GB per feature, 26 GB for talking video) **on Colab**, not on this computer.
 4. **What gets installed on this computer**: `uv`, Python 3.12 and Google's `google-colab-cli` 0.7.4
    (an isolated tool), plus this skill folder. Nothing else.
 5. **Login**: once. You will show a Google sign-in link; the user signs in **with the AI Pro account**,

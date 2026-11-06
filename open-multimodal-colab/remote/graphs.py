@@ -139,3 +139,65 @@ def video(job, models, start_name=None):
                                                            "width": w, "height": h, "crop": "center"}}
         g["latent"]["inputs"]["start_image"] = ["fit", 0]
     return g, "save"
+
+
+S2V_FPS = 16
+S2V_CHUNK = 77  # frames per chunk, as in the official template (about 4.8 s)
+
+
+def talk_chunks(audio_seconds):
+    n = int(audio_seconds * S2V_FPS + S2V_CHUNK - 1) // S2V_CHUNK
+    return max(1, n)
+
+
+def talk(job, models, image_name, audio_name, audio_seconds):
+    """Wan 2.2 S2V-14B: a picture speaks/sings along an audio file (video_wan2_2_14B_s2v.json).
+    The first chunk is WanSoundImageToVideo; every further chunk is WanSoundImageToVideoExtend, as many as the
+    audio needs. 4 steps, cfg 1 with the lightx2v LoRA, like the template."""
+    res = job.get("resolution") or "480P"
+    w, h = VIDEO_SIZES[res][job.get("aspect") or "3:4"]
+    steps, seed = int(job.get("steps", 4)), seed_of(job)
+    g = {
+        "unet": _unet(models, "unet"),
+        "lora": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["unet", 0], "lora_name": M.name(models["lora"]),
+                                                                 "strength_model": 1.0}},
+        "shift": {"class_type": "ModelSamplingSD3", "inputs": {"model": ["lora", 0], "shift": 8}},
+        "clip": {"class_type": "CLIPLoader", "inputs": {"clip_name": M.name(models["clip"]), "type": "wan", "device": "default"}},
+        "vae": {"class_type": "VAELoader", "inputs": {"vae_name": M.name(models["vae"])}},
+        "aenc": {"class_type": "AudioEncoderLoader", "inputs": {"audio_encoder_name": M.name(models["audio"])}},
+        "audio": {"class_type": "LoadAudio", "inputs": {"audio": audio_name}},
+        "aemb": {"class_type": "AudioEncoderEncode", "inputs": {"audio_encoder": ["aenc", 0], "audio": ["audio", 0]}},
+        "pos": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": job["prompt"]}},
+        "neg": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": job.get("negative") or WAN_NEGATIVE}},
+        "load": {"class_type": "LoadImage", "inputs": {"image": image_name}},
+        "ref": {"class_type": "ImageScale", "inputs": {"image": ["load", 0], "upscale_method": "lanczos",
+                                                      "width": w, "height": h, "crop": "center"}},
+        "s2v0": {"class_type": "WanSoundImageToVideo", "inputs": {
+            "positive": ["pos", 0], "negative": ["neg", 0], "vae": ["vae", 0], "width": w, "height": h,
+            "length": S2V_CHUNK, "batch_size": 1, "audio_encoder_output": ["aemb", 0], "ref_image": ["ref", 0]}},
+    }
+
+    def sampler(name, cond):
+        g[name] = {"class_type": "KSampler", "inputs": {
+            "model": ["shift", 0], "positive": [cond, 0], "negative": [cond, 1], "latent_image": [cond, 2],
+            "seed": seed, "steps": steps, "cfg": 1.0, "sampler_name": "uni_pc", "scheduler": "simple", "denoise": 1.0}}
+
+    sampler("k0", "s2v0")
+    latent = "k0"
+    for i in range(1, talk_chunks(audio_seconds)):
+        g[f"s2v{i}"] = {"class_type": "WanSoundImageToVideoExtend", "inputs": {
+            "positive": ["pos", 0], "negative": ["neg", 0], "vae": ["vae", 0], "length": S2V_CHUNK,
+            "video_latent": [latent, 0], "audio_encoder_output": ["aemb", 0], "ref_image": ["ref", 0]}}
+        sampler(f"k{i}", f"s2v{i}")
+        g[f"cat{i}"] = {"class_type": "LatentConcat", "inputs": {"samples1": [latent, 0], "samples2": [f"k{i}", 0], "dim": "t"}}
+        latent = f"cat{i}"
+    g.update({  # the template's tail: prepend the first latent frame, decode, drop the first 3 frames
+        "cut": {"class_type": "LatentCut", "inputs": {"samples": [latent, 0], "dim": "t", "index": 0, "amount": 1}},
+        "full": {"class_type": "LatentConcat", "inputs": {"samples1": ["cut", 0], "samples2": [latent, 0], "dim": "t"}},
+        "decode": {"class_type": "VAEDecode", "inputs": {"samples": ["full", 0], "vae": ["vae", 0]}},
+        "trim": {"class_type": "ImageFromBatch", "inputs": {"image": ["decode", 0], "batch_index": 3, "length": 4096}},
+        "create": {"class_type": "CreateVideo", "inputs": {"images": ["trim", 0], "fps": float(S2V_FPS), "audio": ["audio", 0]}},
+        "save": {"class_type": "SaveVideo", "inputs": {"video": ["create", 0], "filename_prefix": f"omc/{job['id']}",
+                                                       "format": "mp4", "format.codec": "h264"}},
+    })
+    return g, "save"

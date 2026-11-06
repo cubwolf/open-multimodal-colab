@@ -191,9 +191,119 @@ def run_graph(graph, out_node, timeout):
     raise RuntimeError(f"no result after {timeout} s")
 
 
+TTS_ENV = Path(os.environ.get("OMC_TTS_ENV", "/content/ttsenv"))
+
+
+def tts_python():
+    """A venv for qwen-tts (it pins its own transformers); shares Colab's torch through system site-packages."""
+    py = TTS_ENV / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    ready = TTS_ENV / ".omc_ready_v2"
+    if not ready.exists():  # a half-made venv from a failed try is made again
+        shutil.rmtree(TTS_ENV, ignore_errors=True)
+        log("tts: setting up qwen-tts (first time on this runtime)")
+        # uv, not `python -m venv`: Colab's Python has no ensurepip
+        sh([sys.executable, "-m", "pip", "install", "-q", "uv"])
+        sh([sys.executable, "-m", "uv", "venv", "-q", "--system-site-packages", "--python", sys.executable, str(TTS_ENV)])
+        uvpip = [sys.executable, "-m", "uv", "pip", "install", "-q", "--python", str(py)]
+        # qwen-tts would pull its own torch/torchaudio, which breaks the system torchvision: install its
+        # torch-free dependencies normally, then the torch-dependent packages without dependencies
+        sh(uvpip + M.TTS_DEPS)
+        sh(uvpip + ["--no-deps"] + M.TTS_NODEPS)
+        ready.write_text(time.ctime())
+    return str(py)
+
+
+def free_comfy_vram():
+    try:
+        call(COMFY_URL + "/free", {"unload_models": True, "free_memory": True})
+    except Exception:
+        pass
+
+
+def media_seconds(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+                         capture_output=True, text=True, check=True).stdout
+    return float(out.strip())
+
+
+def resolve(rel):
+    if rel.startswith("@"):
+        st = STATE["jobs"].get(rel[1:], {})
+        if st.get("status") != "done":
+            raise RuntimeError(f"{rel}: that job has not produced a file (it must come earlier and succeed)")
+        return OUT / st["file"]
+    return JOB / "inputs" / rel
+
+
+def run_tts(j):
+    free_comfy_vram()  # ComfyUI keeps models on the GPU between jobs
+    spec = {"text": j["prompt"], "language": j.get("language") or "Chinese", "voice": j.get("voice") or "",
+            "model": M.TTS_MODELS["design"]}
+    if j.get("voices"):
+        spec.update(ref_audio=str(resolve(j["voices"][0])), ref_text=j.get("voice_text") or "", model=M.TTS_MODELS["clone"])
+    spec_file = JOB / f"tts_{j['id']}.json"
+    spec_file.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    wav = JOB / f"tts_{j['id']}.wav"
+    p = subprocess.run([tts_python(), str(Path(__file__).resolve().parent / "tts_worker.py"), str(spec_file), str(wav)],
+                       capture_output=True, text=True)
+    if p.returncode != 0:
+        raise RuntimeError("qwen-tts: " + (p.stderr or p.stdout)[-1200:])
+    return wav
+
+
+def run_talk(j, models):
+    image = stage_input(j, 0, j["inputs"][0])
+    src = resolve(j["audio"])
+    audio = f"omc_{j['id']}_audio{src.suffix}"
+    shutil.copy(str(src), str(comfy_input() / audio))
+    seconds = media_seconds(src)
+    log(f"{j['id']}: audio {seconds:.1f} s -> {G.talk_chunks(seconds)} chunk(s) of {G.S2V_CHUNK} frames")
+    graph, out = G.talk(j, models, image, audio, seconds)
+    video = run_graph(graph, out, int(j.get("timeout", 3600)))
+    if j.get("trim_to_audio", True):  # chunks are whole: cut the silent tail after the speech
+        cut = JOB / f"talk_{j['id']}.mp4"
+        sh(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-t", f"{seconds + 0.3:.2f}", "-c:v", "libx264",
+            "-pix_fmt", "yuv420p", "-c:a", "aac", str(cut)])
+        return cut
+    return video
+
+
+def last_frame(video, dst):
+    sh(["ffmpeg", "-v", "error", "-y", "-sseof", "-0.2", "-i", str(video), "-update", "1", "-frames:v", "1", str(dst)])
+    return dst
+
+
+def join_videos(first, second, dst):
+    """second is appended to first at first's size and frame rate; silent parts get a silent track."""
+    probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate",
+                            "-of", "json", str(first)], capture_output=True, text=True, check=True).stdout
+    st = json.loads(probe)["streams"][0]
+    w, h, fps = st["width"], st["height"], G.VIDEO_FPS  # 16 fps talk clips are lifted to 24 to match Wan 5B
+    has_audio = lambda p: bool(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index",
+                                               "-of", "csv=p=0", str(p)], capture_output=True, text=True).stdout.strip())
+    args = ["ffmpeg", "-v", "error", "-y", "-i", str(first), "-i", str(second),
+            "-f", "lavfi", "-t", "60", "-i", "anullsrc=r=44100:cl=stereo"]
+    a0 = "[0:a]" if has_audio(first) else "[2:a]"
+    a1 = "[1:a]" if has_audio(second) else "[2:a]"
+    d0, d1 = media_seconds(first), media_seconds(second)
+    fc = (f"[0:v]scale={w}:{h},fps={fps},setsar=1[v0];"
+          f"[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps={fps},setsar=1[v1];"
+          f"{a0}atrim=0:{d0:.3f},aresample=44100,asetpts=PTS-STARTPTS[a0];"
+          f"{a1}atrim=0:{d1:.3f},aresample=44100,asetpts=PTS-STARTPTS[a1];"
+          "[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]")
+    sh(args + ["-filter_complex", fc, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+               "-c:a", "aac", str(dst)])
+    return dst
+
+
 def run_job(j, tier):
     feature = M.feature_of(j)
+    M.check_tier([feature], tier)
     models = M.FEATURES[feature][tier]
+    if feature == "tts":
+        return run_tts(j)
+    if feature == "talk":
+        return run_talk(j, models)
     if feature == "t2i":
         graph, out = G.t2i(j, models)
         timeout = 900
@@ -202,6 +312,16 @@ def run_job(j, tier):
         graph, out = G.edit(j, models, names)
         timeout = 900
     else:
+        if j.get("extend"):  # continue from the last frame of an earlier clip, then join the two
+            src = resolve(j["extend"])
+            frame = last_frame(src, JOB / f"last_{j['id']}.png")
+            name = f"omc_{j['id']}_last.png"
+            shutil.copy(str(frame), str(comfy_input() / name))
+            graph, out = G.video(j, models, start_name=name)
+            clip = run_graph(graph, out, int(j.get("timeout", 2400)))
+            if j.get("join", True):
+                return join_videos(src, clip, JOB / f"joined_{j['id']}.mp4")
+            return clip
         start = j.get("inputs", [None])[0] if j.get("inputs") else None
         graph, out = G.video(j, models, start_name=stage_input(j, 0, start) if start else None)
         timeout = int(j.get("timeout", 2400))
