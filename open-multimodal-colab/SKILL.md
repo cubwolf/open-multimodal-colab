@@ -1,6 +1,6 @@
 ---
 name: open-multimodal-colab
-description: Generate pictures, edit pictures and make short videos with open models whose licenses need no attribution on the output (Z-Image-Turbo, FLUX.2 klein 4B, Wan 2.2), on the user's own Google Colab GPU driven from this computer through google-colab-cli, or on their own ComfyUI Desktop (local mode, 12 GB VRAM and up). Use when the user asks to 生圖／改圖／生成影片／圖生影片／把分鏡生出來, or wants storyboard frames or clips made, including when you yourself have no image or video tool.
+description: Generate pictures, edit pictures, make short videos, voice-overs and talking-head videos with open models whose licenses need no attribution on the output (Z-Image-Turbo, FLUX.2 klein 4B, Wan 2.2, Qwen3-TTS), on the user's own Google Colab GPU driven from this computer through google-colab-cli, or on their own ComfyUI Desktop (local mode, 12 GB VRAM and up). Use when the user asks to 生圖／改圖／生成影片／圖生影片／配音／說話影片／把分鏡生出來, or wants storyboard frames or clips made, including when you yourself have no image or video tool.
 ---
 
 # 開源多模態生成（Colab GPU 或本機 ComfyUI）
@@ -54,7 +54,8 @@ python scripts/omlocal.py run omcjob/manifest.json [--confirmed]
 
 1. **會做什麼**：在使用者的 Google 帳號開一台 Colab GPU，裝 ComfyUI 和模型，生成完把檔案下載回這台電腦，然後**關掉那台 GPU**。
 2. **要什麼訂閱**：至少 **Google AI Pro**（附 Colab 運算單元）。Plus 不夠。
-3. **花多少點**：L4 約每小時 1.5 點，G4 約每小時 11 點。每次開機要先裝環境、下載模型（只下載這批用得到的：文生圖約 18 GB、改圖約 13 GB、影片約 18 GB）。
+3. **花多少點**：L4 約每小時 1.5 點，G4 約每小時 11 點。每次開機要先裝環境、下載模型（只下載這批用得到的：文生圖約 18 GB、改圖約 13 GB、影片約 18 GB、說話影片約 26 GB）。
+   實測（L4）：改 4 張圖含開機約 4.4 分鐘、0.08 點；配音＋14 秒說話影片＋5 秒延伸，順利的話約 19 分鐘、0.55 點。
 4. **會從哪裡抓什麼**：GitHub 的 ComfyUI；Hugging Face 的 Comfy-Org、Black Forest Labs、QuantStack 模型檔。**全部下載到 Colab 上，不佔這台電腦的空間。**
 5. **何時要登入**：只有第一次。你會給他一個 Google 網址，他用**有 AI Pro 的帳號**登入、按允許，把頁面上的授權碼貼回對話。
 
@@ -78,6 +79,7 @@ python scripts/omrun.py check              # 看到剩餘運算單元＝成功
      沒有 `--confirmed` 不會開機，它會先印出這批的摘要，給使用者看，確認後再加 `--confirmed`。
    - 影片預設 720P（Wan 2.2 5B 訓練時的解析度）。480P 比較快，但畫質還沒實測。
    - 第一次的批次先試一張圖和一段 3 秒影片，讓使用者看到真實的時間。
+   - L4 實測：改圖每張 9–12 秒；說話影片每秒成品約 32 秒（14.5 秒片長 7.7 分鐘）；5 秒延伸約 3.3 分鐘。
 6. **送出**：
    ```
    python scripts/omrun.py run omcjob/manifest.json --gpu L4
@@ -104,7 +106,7 @@ python scripts/omrun.py check              # 看到剩餘運算單元＝成功
 
 ### 影片
 - 沒有 `inputs` → 文生影片；`inputs` 放 1 張圖 → 那張圖當第一格（會置中裁成影片比例）。
-- `seconds`：1–5（Wan 2.2 一段約 5 秒）。更長的片段要切成多段，之後的版本會加延伸功能。
+- `seconds`：1–5（Wan 2.2 一段約 5 秒）。更長的片段用 `extend` 接在前一段之後。
 - `aspect`：`16:9`（預設）、`9:16`、`1:1`、`4:3`、`3:4`。
 - 影片**沒有聲音**。
 - 分鏡流程：先用 `image` 生出分鏡圖，再讓 `video` 用 `"inputs": ["@<圖片 id>"]` 接著動起來，一次開機做完。
@@ -112,7 +114,7 @@ python scripts/omrun.py check              # 看到剩餘運算單元＝成功
 ### 配音與說話影片
 - `tts` 的 `prompt` 是要念的台詞；`voice` 是聲音描述，**一定要寫性別和年齡**（例如「溫和的中年男性，語速適中，親切」）。
   要複製某人的聲音，把錄音放 `voices`（1 段，3 秒以上），**只用本人或已同意的聲音**。
-- 中文台詞約每秒 4 字。說話影片長度跟著語音走（每 4.8 秒一段，最後會裁到語音結束）。
+- 中文台詞約每秒 3.4 字（實測 48 字念 14.2 秒）。要 5 秒的說話影片，台詞約 15–17 字。說話影片長度跟著語音走（每 4.8 秒一段，最後會裁到語音結束）。
 - `talk` 用 `"audio": "@<tts 的 id>"` 接上配音，`inputs` 放 1 張人物圖。預設 480P、3:4。14B 模型只能在 Colab（high 等級）跑。
 - 說話影片之後要接動作：下一個 `video` 寫 `"extend": "@<talk 的 id>"`，成品會是兩段接好的影片（延伸那段沒有聲音）。
 
