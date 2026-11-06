@@ -29,7 +29,7 @@ REMOTE = SKILL / "remote"
 sys.path.insert(0, str(REMOTE))
 import graphs as G  # noqa: E402
 GPUS = ("L4", "G4", "A100", "H100")   # colab-cli turns an unknown name into A100 without a word: only these pass
-TYPES = ("image", "video")
+TYPES = ("image", "video", "tts", "talk")
 PREFIX = "omc-"
 ENV = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
 
@@ -166,7 +166,8 @@ def load_manifest(path):
         if not str(j.get("prompt", "")).strip():
             problems.append(f"{jid}：沒有 prompt")
         files = list(j.get("inputs", []))
-        for f in files:
+        others = list(j.get("voices", [])) + [j[k] for k in ("audio", "extend") if j.get(k)]
+        for f in files + others:
             if str(f).startswith("@"):  # an earlier job's output in this batch
                 if f[1:] not in seen:
                     problems.append(f"{jid}：{f} 要指向排在它前面的 job")
@@ -177,6 +178,14 @@ def load_manifest(path):
             problems.append(f"{jid}：圖片編輯最多 4 張參考圖")
         if j.get("type") == "video" and len(files) > 1:
             problems.append(f"{jid}：影片最多 1 張起始圖")
+        if j.get("type") == "video" and j.get("extend") and files:
+            problems.append(f"{jid}：延伸會用前一段影片的最後一格當起點，不能再給 inputs")
+        if j.get("type") == "talk" and (len(files) != 1 or not j.get("audio")):
+            problems.append(f"{jid}：說話影片要 1 張圖（inputs）和 1 段語音（audio，可寫 @tts 的 id）")
+        if j.get("type") == "talk" and j.get("resolution") and j["resolution"] not in G.VIDEO_SIZES:
+            problems.append(f"{jid}：resolution 要是 {tuple(G.VIDEO_SIZES)}")
+        if j.get("type") == "tts" and len(j.get("voices", [])) > 1:
+            problems.append(f"{jid}：TTS 只能有 1 段參考聲音")
         if j.get("type") == "video" and not 1 <= float(j.get("seconds", 5)) <= G.MAX_VIDEO_SECONDS:
             problems.append(f"{jid}：seconds 要在 1–{G.MAX_VIDEO_SECONDS} 之間（Wan 2.2 一段約 5 秒）")
         if j.get("type") == "video" and j.get("resolution") and j["resolution"] not in G.VIDEO_SIZES:
@@ -223,7 +232,7 @@ def skip_finished(m, base, force):
     done = {}
     for j in m["jobs"]:
         hit = sorted((base / "out").glob(f"{j['id']}.*"))
-        hit = [h for h in hit if h.suffix in (".png", ".jpg", ".webp", ".mp4")]
+        hit = [h for h in hit if h.suffix in (".png", ".jpg", ".webp", ".mp4", ".wav")]
         if hit:
             done[j["id"]] = "out/" + hit[0].name
     if not done:
@@ -235,8 +244,12 @@ def skip_finished(m, base, force):
         if j["id"] in done:
             continue
         j = dict(j)
-        if "inputs" in j:
-            j["inputs"] = [swap(v) for v in j["inputs"]]
+        for k in ("inputs", "voices"):
+            if k in j:
+                j[k] = [swap(v) for v in j[k]]
+        for k in ("audio", "extend"):
+            if k in j:
+                j[k] = swap(j[k])
         jobs.append(j)
     if not jobs:
         sys.exit("這一批全部都做好了（out/ 裡都有檔案）。要重做加 --force")
@@ -254,7 +267,7 @@ def spec_summary(m, gpu):
     kinds = {t: sum(1 for j in m["jobs"] if j["type"] == t) for t in TYPES}
     edits = sum(1 for j in m["jobs"] if j["type"] == "image" and j.get("inputs"))
     return (f"圖片 {kinds['image']}（其中編輯 {edits}）、影片 {kinds['video']}（共 {secs:g} 秒，解析度 {'/'.join(res) or '-'}，"
-            f"比例 {'/'.join(shapes) or '-'}），GPU {gpu}")
+            f"比例 {'/'.join(shapes) or '-'}）、配音 {kinds['tts']}、說話影片 {kinds['talk']}，GPU {gpu}")
 
 
 def run(args):
@@ -273,6 +286,7 @@ def run(args):
     if not token_ok():
         sys.exit("還沒登入 Colab：先跑 python colab_login.py url，照指示登入")
     units, _ = usage()
+    t_boot = time.time()
     print(f"💳 剩餘運算單元：{units if units is not None else '（讀不到，請看 colab usage）'}", flush=True)
     if units is not None and units < 5:
         sys.exit("運算單元不到 5，先不開機（G4 每小時約 11、L4 約 1.5）")
@@ -288,17 +302,18 @@ def run(args):
     else:
         print(f"♻️ 沿用還開著的 {session}（模型已經在上面，可以省下安裝和下載）", flush=True)
     t0 = time.time()
-    results = {"session": session, "gpu": gpu, "jobs": {}}
+    results = {"session": session, "gpu": gpu, "jobs": {}, "units_before": units}
     set_keep(session, None)  # busy: an earlier batch's watchdog must not stop this one
     finished = False
     try:
         remote_exec(session, "import os\nos.makedirs('/content/omcjob/inputs', exist_ok=True)\nprint('ok')")
-        for f in ("remote_job.py", "graphs.py", "models.py"):
+        for f in ("remote_job.py", "graphs.py", "models.py", "tts_worker.py"):
             colab("upload", "-s", session, REMOTE / f, f"/content/omcjob/{f}")
         manifest_tmp = Path(tempfile.gettempdir()) / f"{session}_manifest.json"
         manifest_tmp.write_text(json.dumps(m, ensure_ascii=False, indent=1), encoding="utf-8")
         colab("upload", "-s", session, manifest_tmp, "/content/omcjob/manifest.json")
-        files = {f for j in m["jobs"] for f in j.get("inputs", [])}
+        files = {f for j in m["jobs"] for f in list(j.get("inputs", [])) + list(j.get("voices", []))
+                 + [j[k] for k in ("audio", "extend") if j.get(k)]}
         files = {f for f in files if not str(f).startswith("@")}
         dirs = sorted({str(Path(f).parent).replace("\\", "/") for f in files} - {"."})
         if dirs:
@@ -353,12 +368,16 @@ def run(args):
                 break
     finally:
         results["minutes"] = round((time.time() - t0) / 60, 1)
-        (out_dir / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
+        results["minutes_with_boot"] = round((time.time() - t_boot) / 60, 1)
         if args.stop_after or not finished or args.idle_minutes <= 0:
             # an interrupted run is never left running: nobody knows what state that GPU is in
             print(f"🛑 釋放 GPU：{session}", flush=True)
             colab("stop", "-s", session, timeout=300, check=False)
             drop_keep(session)
+            results["units_after"] = usage()[0]  # Colab may update this a few minutes late
+            if units is not None and results["units_after"] is not None:
+                results["units_used"] = round(units - results["units_after"], 2)
+                print(f"💳 這批用了約 {results['units_used']} 點（剩 {results['units_after']}）", flush=True)
         else:
             set_keep(session, time.time() + args.idle_minutes * 60)
             start_watchdog(session)
@@ -368,6 +387,7 @@ def run(args):
             print(f"   接著做：python omrun.py run <manifest> --session {session}", flush=True)
             print(f"   多留一下：python omrun.py keep --session {session} --minutes 60", flush=True)
             print(f"   現在關掉：python omrun.py stop --session {session}", flush=True)
+        (out_dir / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
         left = [n for n in sessions()[0] if not keep_file(n).exists()]
         if left:
             print(f"⚠️ 帳號上還有其他開著的 runtime：{left}（會持續扣點，不用就 python omrun.py stop --all）", flush=True)

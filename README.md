@@ -12,10 +12,13 @@
 | 文生圖 | Z-Image-Turbo | bf16 | int8 |
 | 圖片編輯（1–4 張參考圖） | FLUX.2 [klein] 4B | fp8 | fp8 |
 | 文生影片、圖生影片（1–5 秒，無聲） | Wan 2.2 TI2V-5B | fp16 | GGUF Q8 |
+| 影片延伸（接在前一段之後） | Wan 2.2 TI2V-5B | fp16 | GGUF Q8 |
+| 配音（設計聲音或複製音色） | Qwen3-TTS 1.7B | bf16 | bf16（未實測） |
+| 說話影片（圖＋語音） | Wan 2.2 S2V-14B | fp8＋4 步 LoRA | 不支援 |
 
 顯存等級會自動判斷，見 [models.py](open-multimodal-colab/remote/models.py)。12 GB 的設定是依檔案大小推估的，還沒實測。
 
-之後的版本會加入：配音（Qwen3-TTS）、音樂（ACE-Step 1.5）、說話影片（Wan 2.2-S2V）。
+之後的版本會加入：音樂（ACE-Step 1.5）。
 
 ## 安裝
 

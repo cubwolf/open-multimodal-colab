@@ -9,6 +9,12 @@
 | FLUX.2 [klein] 4B（Black Forest Labs） | 圖片編輯 | Apache 2.0（**只有 4B**；9B 與 [dev] 是非商用授權，不可換用） | 不用（但不可冒用 BFL／FLUX 商標） |
 | Wan 2.2 TI2V-5B（Wan-AI） | 影片 | Apache 2.0，官方不主張生成內容的權利 | 不用 |
 | UMT5-XXL 文字編碼器 | Wan 2.2 | Apache 2.0 | 不用 |
+| Wan 2.2 S2V-14B（Wan-AI） | 說話影片 | Apache 2.0，官方不主張生成內容的權利 | 不用 |
+| Wan2.2-Lightning（lightx2v 4 步 LoRA） | 說話影片加速 | Apache 2.0 | 不用 |
+| Qwen3-TTS 1.7B（Alibaba Qwen） | 配音 | Apache 2.0 | 不用 |
+| wav2vec2 large english（音訊編碼器） | 說話影片 | 待查證（Comfy-Org 重新打包，原始權重出處未確認） | — |
+
+複製聲音只用本人或已取得同意的聲音。
 
 Apache 2.0 的要求只在**散布模型或程式碼本身**時才有（附上授權與 NOTICE），自己生成的圖片和影片不用署名。
 

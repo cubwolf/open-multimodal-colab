@@ -5,7 +5,7 @@
   python tests/validate_graphs.py [--url http://127.0.0.1:8188]
 
 The ComfyUI under test needs the model files (empty placeholder files are enough), ComfyUI-GGUF for the low
-tier, and two pictures a.png and b.png in its input folder.
+tier, and two pictures a.png and b.png and a short v.wav in its input folder.
 """
 import argparse
 import json
@@ -30,13 +30,17 @@ def post(url, path, body):
 
 def cases():
     for tier in ("high", "low"):
-        m = {f: {k: v for k, v in M.FEATURES[f][tier].items()} for f in M.FEATURES}
+        m = {f: M.FEATURES[f].get(tier, {}) for f in M.FEATURES}
         yield f"{tier} t2i 1K 1:1", G.t2i({"id": "t", "prompt": "a cat", "seed": 1}, m["t2i"])
         yield f"{tier} t2i 2K 9:16", G.t2i({"id": "t", "prompt": "a cat", "aspect": "9:16", "size": "2K"}, m["t2i"])
         yield f"{tier} edit 1 pic auto", G.edit({"id": "e", "prompt": "make it blue"}, m["edit"], ["a.png"])
         yield f"{tier} edit 3 pics 16:9", G.edit({"id": "e", "prompt": "mix", "aspect": "16:9", "size": "1.5K"}, m["edit"],
                                                  ["a.png", "b.png", "a.png"])
         yield f"{tier} video text 720P", G.video({"id": "v", "prompt": "waves", "seconds": 5}, m["video"])
+        if tier == "high":
+            yield "high talk 1 chunk", G.talk({"id": "s", "prompt": "he talks"}, M.FEATURES["talk"]["high"], "a.png", "v.wav", 3)
+            yield "high talk 3 chunks", G.talk({"id": "s", "prompt": "he talks", "aspect": "9:16"}, M.FEATURES["talk"]["high"],
+                                               "a.png", "v.wav", 11)
         yield f"{tier} video image 480P 9:16", G.video({"id": "v", "prompt": "waves", "seconds": 3, "resolution": "480P",
                                                         "aspect": "9:16"}, m["video"], start_name="a.png")
 
