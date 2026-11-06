@@ -18,7 +18,7 @@ FILES = {
     "zimage_vae": ("Comfy-Org/z_image_turbo", "split_files/vae/ae.safetensors", "vae", 0.3),
     # FLUX.2 [klein] 4B distilled (image edit, 1-4 reference pictures) - Black Forest Labs, Apache 2.0 (4B only)
     "klein4b_fp8": ("black-forest-labs/FLUX.2-klein-4b-fp8", "flux-2-klein-4b-fp8.safetensors", "diffusion_models", 4.0),
-    "flux2_vae": ("Comfy-Org/flux2-dev", "split_files/vae/flux2-vae.safetensors", "vae", 0.3),
+    "flux2_vae": ("Comfy-Org/Flux-2-Klein-4B", "split_files/vae/flux2-vae.safetensors", "vae", 0.3),  # apache-2.0 repo
     # Wan 2.2 TI2V-5B (text or picture to video, 24 fps) - Wan-AI, Apache 2.0
     "wan5b_fp16": ("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors", "diffusion_models", 10.0),
     "wan5b_q8": ("QuantStack/Wan2.2-TI2V-5B-GGUF", "Wan2.2-TI2V-5B-Q8_0.gguf", "diffusion_models", 5.4),

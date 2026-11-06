@@ -12,9 +12,10 @@
 
 Apache 2.0 的要求只在**散布模型或程式碼本身**時才有（附上授權與 NOTICE），自己生成的圖片和影片不用署名。
 
-## 還沒查證的
-- `flux2-vae.safetensors` 是從 Comfy-Org 的 `flux2-dev` repo 下載的。FLUX.2 [dev] 的模型權重是非商用授權，VAE 本身的授權要再確認。
-- `black-forest-labs/FLUX.2-klein-4b-fp8` 在 Hugging Face 上是否需要先登入同意條款，要在第一次下載時確認。
+## 下載來源的授權
+- FLUX.2 的 VAE（`flux2-vae.safetensors`）從 `Comfy-Org/Flux-2-Klein-4B` 下載，這個 repo 標示 apache-2.0；BFL 官方 README 也寫明 autoencoder 以 Apache 2.0 釋出。
+  不要改從 `Comfy-Org/flux2-dev` 下載：那個 repo 標示的是非商用授權。
+- `black-forest-labs/FLUX.2-klein-4b-fp8` 標示 apache-2.0，沒有存取限制（2026-11-06 查）。
 
 ## 本程式
 - 本 repo 的程式：MIT（見 `LICENSE`）。
