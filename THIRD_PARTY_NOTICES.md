@@ -42,4 +42,6 @@ google-colab-cli's `auth.py` (Apache License 2.0, Copyright Google LLC).
 
 The graphs in `open-multimodal-colab/remote/graphs.py` follow the official templates in
 https://github.com/Comfy-Org/workflow_templates (`image_z_image_turbo*.json`,
-`image_flux2_klein_image_edit_4b_distilled.json`, `video_wan2_2_5B_ti2v.json`).
+`image_flux2_klein_image_edit_4b_distilled.json`, `video_wan2_2_5B_ti2v.json`,
+`video_wan2_2_14B_s2v.json`). The graphs are rebuilt in code from those templates' node layout; no template file is copied
+into this repository. That repository declared no license when checked on 2026-11-06.

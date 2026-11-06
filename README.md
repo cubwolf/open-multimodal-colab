@@ -42,7 +42,6 @@ Observations:
 
 - Music (ACE-Step 1.5)
 - A real test on a 12 GB local GPU (RTX 3060)
-- The license of the original weights of the wav2vec2 audio encoder used for talking video
 
 ## Install
 
