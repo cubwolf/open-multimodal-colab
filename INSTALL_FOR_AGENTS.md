@@ -1,3 +1,5 @@
+**English** | [繁體中文](INSTALL_FOR_AGENTS.zh-TW.md)
+
 # Install guide for AI agents
 
 You were asked to install **open-multimodal-colab**. Follow these steps in order.
@@ -6,7 +8,7 @@ You were asked to install **open-multimodal-colab**. Follow these steps in order
 
 Before installing anything, explain in the user's language:
 
-1. **What it does**: it lets you (the agent) generate and edit pictures and make short silent videos with
+1. **What it does**: it lets you (the agent) generate and edit pictures, make short videos, voice-overs and talking videos with
    open models (Z-Image-Turbo, FLUX.2 klein 4B, Wan 2.2, Qwen3-TTS; Apache 2.0, no attribution on the output) on
    **the user's own Google Colab GPU**. You write the prompts; Colab does the work;
    the files come back to this computer; the GPU is released afterwards.

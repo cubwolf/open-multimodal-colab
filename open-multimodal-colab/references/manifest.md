@@ -1,7 +1,9 @@
+**English** | [繁體中文](manifest.zh-TW.md)
+
 # manifest.json
 
-放在工作資料夾裡；`inputs` 的路徑都**相對於 manifest 所在的資料夾**。
-成品下載到同一個資料夾的 `out/<id>.<副檔名>`，總結在 `out/results.json`。
+Put it in a working folder; every `inputs` path is **relative to the folder that holds the manifest**.
+Results are downloaded to `out/<id>.<ext>` in the same folder, with a summary in `out/results.json`.
 
 ```json
 {
@@ -27,30 +29,30 @@
 }
 ```
 
-## 欄位
+## Fields
 
-| 欄位 | 用在 | 說明 |
+| Field | Used by | Meaning |
 |---|---|---|
-| `id` | 全部 | 英數、`-`、`_`；也是輸出檔名 |
-| `type` | 全部 | `image`／`video`／`tts`／`talk` |
-| `prompt` | 全部 | 見 prompt-guide.md |
-| `inputs` | image、video、talk | talk：1 張人物圖。image：0 張＝文生圖，1–4 張＝編輯（第 1 張是要改的那張）。video：0 張＝文生影片，1 張＝第一格 |
-| `aspect` | image、video | image：`auto`（編輯時跟第 1 張同比例；文生圖等於 `1:1`）、`1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`21:9`。video：`16:9`（預設）、`9:16`、`1:1`、`4:3`、`3:4` |
-| `size` | image | `1K`（預設）、`1.5K`、`2K` |
-| `seconds` | video | 1–5，預設 5 |
-| `resolution` | video、talk | video 預設 `720P`（1280×704），talk 預設 `480P`；`480P` 是 832×480（16:9） |
-| `negative` | video | 不要出現的東西；不給就用 Wan 官方範本的預設 |
-| `steps` | 全部 | 進階：文生圖預設 8、編輯 4、影片 20 |
-| `seed` | 全部 | 不給就隨機，實際用的 seed 會寫進 `results.json`；要重現就固定 |
-| `timeout` | video、talk | 單段等待上限（秒），video 預設 2400、talk 3600 |
-| `extend` | video | `@<id>` 或影片檔：用它的最後一格當起點，成品接在它後面（不能再給 `inputs`）。`"join": false` 只要新的那段 |
-| `voice` | tts | 聲音描述（性別、年齡、語氣） |
-| `voices` | tts | 1 段參考錄音（複製音色）；`voice_text` 可填錄音內容，會更像 |
-| `language` | tts | 預設 `Chinese` |
-| `audio` | talk | 語音檔或 `@<tts 的 id>` |
-| `trim_to_audio` | talk | 預設 `true`：裁掉語音結束後多出來的畫面 |
+| `id` | all | letters, digits, `-`, `_`; also the output file name |
+| `type` | all | `image` / `video` / `tts` / `talk` |
+| `prompt` | all | see prompt-guide.md |
+| `inputs` | image, video, talk | talk: 1 portrait. image: 0 = text to image, 1–4 = edit (image 1 is the one changed). video: 0 = text to video, 1 = first frame |
+| `aspect` | image, video | image: `auto` (when editing, same ratio as image 1; for text to image it means `1:1`), `1:1`, `16:9`, `9:16`, `4:3`, `3:4`, `3:2`, `2:3`, `21:9`. video: `16:9` (default), `9:16`, `1:1`, `4:3`, `3:4` |
+| `size` | image | `1K` (default), `1.5K`, `2K` |
+| `seconds` | video | 1–5, default 5 |
+| `resolution` | video, talk | video defaults to `720P` (1280×704), talk to `480P`; `480P` is 832×480 (16:9) |
+| `negative` | video | things that should not appear; defaults to the official Wan template's negative prompt |
+| `steps` | all | advanced: text to image 8, edit 4, video 20 by default |
+| `seed` | all | random if omitted; the seed actually used goes into `results.json`; fix it to reproduce |
+| `timeout` | video, talk | wait limit per job in seconds; video 2400, talk 3600 by default |
+| `extend` | video | `@<id>` or a video file: start from its last frame and append the result to it (no `inputs` allowed). `"join": false` returns only the new clip |
+| `voice` | tts | voice description (gender, age, tone) |
+| `voices` | tts | 1 reference recording (voice clone); `voice_text` can hold what it says, which makes the clone closer |
+| `language` | tts | default `Chinese` |
+| `audio` | talk | a speech file or `@<tts id>` |
+| `trim_to_audio` | talk | default `true`: cut the frames left after the speech ends |
 
-說話影片範例：
+Talking-video example:
 ```json
 {"id": "line01", "type": "tts", "prompt": "大家好，很高興認識你。", "voice": "溫和的中年男性，語速適中，親切"},
 {"id": "say01", "type": "talk", "inputs": ["inputs/me.png"], "audio": "@line01",
@@ -59,12 +61,12 @@
  "prompt": "He walks happily to the right, then turns his head to the camera and waves"}
 ```
 
-批次層級：`gpu`（`L4`、`G4`、`A100`、`H100`）、`stop_on_error`、`tier`（強制 `high`／`low`，通常不用填）。
+Batch level: `gpu` (`L4`, `G4`, `A100`, `H100`), `stop_on_error`, `tier` (force `high` / `low`; usually leave it out).
 
-## 一批的順序與 `@id`
-同一批依序執行。`inputs` 裡可以寫 `@<id>`，意思是「**用這一批裡前面那個 job 的成品**」，
-例如先生 `frame01` 這張圖，再讓 `shot01` 用 `"inputs": ["@frame01"]`。
-被引用的 job 一定要排在前面而且成功，否則這一段會失敗（其他段照跑）。
+## Order within a batch and `@id`
+Jobs in a batch run in order. `inputs` can contain `@<id>`, meaning "**the result of that earlier job in this batch**",
+e.g. make the picture `frame01` first, then let `shot01` use `"inputs": ["@frame01"]`.
+The referenced job must come earlier and succeed, otherwise this job fails (the others still run).
 
-## 續跑
-`out/` 裡已經有同 id 的檔案就跳過，引用它的 job 會直接拿那個檔案。要重做加 `--force`。
+## Resuming
+A job is skipped when `out/` already has a file with its id, and jobs that reference it use that file. Add `--force` to redo.

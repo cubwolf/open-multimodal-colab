@@ -1,131 +1,135 @@
 ---
 name: open-multimodal-colab
-description: Generate pictures, edit pictures, make short videos, voice-overs and talking-head videos with open models whose licenses need no attribution on the output (Z-Image-Turbo, FLUX.2 klein 4B, Wan 2.2, Qwen3-TTS), on the user's own Google Colab GPU driven from this computer through google-colab-cli, or on their own ComfyUI Desktop (local mode, 12 GB VRAM and up). Use when the user asks to 生圖／改圖／生成影片／圖生影片／配音／說話影片／把分鏡生出來, or wants storyboard frames or clips made, including when you yourself have no image or video tool.
+description: Generate pictures, edit pictures, make short videos, voice-overs and talking-head videos with open models whose licenses need no attribution on the output (Z-Image-Turbo, FLUX.2 klein 4B, Wan 2.2, Qwen3-TTS), on the user's own Google Colab GPU driven from this computer through google-colab-cli, or on their own ComfyUI Desktop (local mode, 12 GB VRAM and up). Use when the user asks to 生圖／改圖／生成影片／圖生影片／配音／說話影片／把分鏡生出來, or wants storyboard frames, clips, voice-overs or talking videos made, including when you yourself have no image or video tool.
 ---
 
-# 開源多模態生成（Colab GPU 或本機 ComfyUI）
+**English** | [繁體中文](SKILL.zh-TW.md)
 
-在使用者自己的 GPU 上，用授權乾淨（Apache 2.0、不要求在成品上標示模型名稱）的開源模型生成：
+# Open multimodal generation (Colab GPU or local ComfyUI)
 
-| 種類 | 做什麼 | 模型 |
+On the user's own GPU, generate with open models whose licenses are clean (Apache 2.0, no model name required on the output):
+
+| Type | What it does | Model |
 |---|---|---|
-| `image`（沒有 `inputs`） | 文生圖，中英文字都能畫 | Z-Image-Turbo（6B，8 步） |
-| `image`（有 `inputs`） | 拿 1–4 張圖編輯或合成（換顏色、換衣服、把人放進場景） | FLUX.2 [klein] 4B |
-| `video` | 文生影片，或拿一張圖當第一格，1–5 秒，24 fps，**沒有聲音** | Wan 2.2 TI2V-5B |
-| `video` + `extend` | 從前一段影片的最後一格接著演，成品自動接回前一段 | Wan 2.2 TI2V-5B |
-| `tts` | 配音：用文字描述設計聲音，或拿一段錄音複製音色 | Qwen3-TTS 1.7B |
-| `talk` | 說話影片：一張圖＋一段語音，嘴型對上聲音，長度跟著語音走 | Wan 2.2 S2V-14B（**只有 high 等級**） |
+| `image` (no `inputs`) | text to image; can draw English and Chinese text | Z-Image-Turbo (6B, 8 steps) |
+| `image` (with `inputs`) | edit or combine 1–4 images (change colors, change clothes, put a person into a scene) | FLUX.2 [klein] 4B |
+| `video` | text to video, or one image as the first frame; 1–5 s, 24 fps, **no sound** | Wan 2.2 TI2V-5B |
+| `video` + `extend` | continue from the last frame of an earlier clip; the result is joined to that clip automatically | Wan 2.2 TI2V-5B |
+| `tts` | voice-over: design a voice from a text description, or clone a voice from a recording | Qwen3-TTS 1.7B |
+| `talk` | talking video: one image plus speech, lips matched to the audio, length follows the speech | Wan 2.2 S2V-14B (**high tier only**) |
 
-你（大模型）負責**理解需求、寫提示詞、組工作清單、檢查成果**；生成在 Colab 或本機 ComfyUI 上跑。
-音樂之後的版本才會加入。
+You (the language model) **understand the request, write the prompts, build the job list and check the results**; generation runs on Colab or on the local ComfyUI.
+Music will be added in a later version.
+
+Talk to the user in their own language (for Chinese-speaking users, Traditional Chinese).
 
 ---
 
-## 0. 第一次使用：先問在哪裡跑
+## 0. First use: ask where to run
 
-**第一件事先問使用者**：「要在 Google Colab 上跑，還是用你自己電腦上的 ComfyUI Desktop（本機）？」
-- 本機的條件：NVIDIA 顯示卡、**10 GB 以上**顯示卡記憶體（RTX 3060 12 GB 可以）、系統記憶體建議 32 GB、硬碟約 35 GB。
-  ComfyUI Desktop 要先自己安裝好並打開（https://comfy.org/download）。
-- 沒回答、或沒有符合條件的顯示卡 → **Colab**。
-- 選了就記住，之後每批照用。
+**First ask the user**: "Run on Google Colab, or on ComfyUI Desktop on your own computer (local)?"
+- Local needs: an NVIDIA graphics card with **10 GB or more** of VRAM (an RTX 3060 12 GB works), 32 GB of system RAM recommended, about 35 GB of disk.
+  ComfyUI Desktop must already be installed and open (https://comfy.org/download).
+- No answer, or no suitable graphics card → **Colab**.
+- Remember the choice and use it for later batches.
 
-### 顯存等級（自動判斷）
-| 等級 | 顯存 | 用的版本 |
+### VRAM tiers (detected automatically)
+| Tier | VRAM | Versions used |
 |---|---|---|
-| `high` | 20 GB 以上（Colab L4、G4、24 GB 顯示卡） | Z-Image bf16、Wan 2.2 5B fp16 |
-| `low` | 10–19 GB（RTX 3060 12 GB 等） | Z-Image int8、Wan 2.2 5B GGUF Q8（需要 ComfyUI-GGUF 節點，`setup` 會裝） |
+| `high` | 20 GB or more (Colab L4, G4, 24 GB cards) | Z-Image bf16, Wan 2.2 5B fp16 |
+| `low` | 10–19 GB (RTX 3060 12 GB and similar) | Z-Image int8, Wan 2.2 5B GGUF Q8 (needs the ComfyUI-GGUF nodes; `setup` installs them) |
 
-### 本機版（ComfyUI Desktop）
+### Local mode (ComfyUI Desktop)
 ```
-python scripts/omlocal.py check                # ComfyUI 開了沒、顯存等級、缺哪些模型與節點
-python scripts/omlocal.py setup                # 第一次：下載缺的模型、裝需要的節點組
+python scripts/omlocal.py check                # is ComfyUI open, VRAM tier, which models and nodes are missing
+python scripts/omlocal.py setup                # first time: download missing models, install needed node packs
 python scripts/omlocal.py run omcjob/manifest.json [--confirmed]
 ```
-- 只要部分功能：`--features t2i,video`（可選 `t2i`、`edit`、`video`），可以少下載。
-- 模型放 `~/ComfyUI-Shared/models`（ComfyUI Desktop 的預設）；放別處加 `--models-dir`。
-- `setup` 裝了新節點時，照它印出的指令裝節點套件，請使用者**重開 ComfyUI Desktop**，再 `check`。
-- 可攜版 ComfyUI 回報不出自己的位置：加 `--comfy-dir <ComfyUI 資料夾>`。
-- 判斷錯等級時可以強制：`--tier high` 或 `--tier low`。
-- 下面第 1 節的流程照走，只是第 6 步換成 `omlocal.py run`，第 8 步不用問保留 GPU。
+- Only some features: `--features t2i,video` (choose from `t2i`, `edit`, `video`) to download less.
+- Models go to `~/ComfyUI-Shared/models` (ComfyUI Desktop's default); add `--models-dir` if they live elsewhere.
+- When `setup` installs new nodes, follow the commands it prints to install the node packages, ask the user to **restart ComfyUI Desktop**, then `check` again.
+- A portable ComfyUI that cannot report its location: add `--comfy-dir <ComfyUI folder>`.
+- To force a tier when detection is wrong: `--tier high` or `--tier low`.
+- Follow the flow in section 1 below, except step 6 becomes `omlocal.py run` and step 8 does not ask about keeping a GPU.
 
-### Colab 版：先跟使用者說清楚，再安裝
+### Colab mode: explain first, then install
 
-如果 `python scripts/omrun.py check` 找不到 colab 或還沒登入，**先停下來**，用使用者的語言說明這五件事，等對方說「好」才開始：
+If `python scripts/omrun.py check` cannot find colab or is not logged in, **stop first** and explain these five things in the user's language; only start after they say yes:
 
-1. **會做什麼**：在使用者的 Google 帳號開一台 Colab GPU，裝 ComfyUI 和模型，生成完把檔案下載回這台電腦，然後**關掉那台 GPU**。
-2. **要什麼訂閱**：至少 **Google AI Pro**（附 Colab 運算單元）。Plus 不夠。
-3. **花多少點**：L4 約每小時 1.5 點，G4 約每小時 11 點。每次開機要先裝環境、下載模型（只下載這批用得到的：文生圖約 18 GB、改圖約 13 GB、影片約 18 GB、說話影片約 26 GB）。
-   實測（L4）：改 4 張圖含開機約 4.4 分鐘、0.08 點；配音＋14 秒說話影片＋5 秒延伸，順利的話約 19 分鐘、0.55 點。
-4. **會從哪裡抓什麼**：GitHub 的 ComfyUI；Hugging Face 的 Comfy-Org、Black Forest Labs、QuantStack 模型檔。**全部下載到 Colab 上，不佔這台電腦的空間。**
-5. **何時要登入**：只有第一次。你會給他一個 Google 網址，他用**有 AI Pro 的帳號**登入、按允許，把頁面上的授權碼貼回對話。
+1. **What happens**: a Colab GPU is started on the user's Google account, ComfyUI and the models are installed there, the files are downloaded back to this computer after generation, and then **that GPU is shut down**.
+2. **Subscription**: at least **Google AI Pro** (it includes Colab compute units). Plus is not enough.
+3. **Cost**: L4 about 1.5 units per hour, G4 about 11 units per hour. Every boot installs the environment and downloads models first (only what the batch needs: about 18 GB for text to image, 13 GB for editing, 18 GB for video, 26 GB for talking video).
+   Measured on L4: editing 4 images including boot took about 4.4 minutes and 0.08 units; voice-over plus a 14 s talking video plus a 5 s extension takes about 19 minutes and 0.55 units when nothing fails.
+4. **What is downloaded from where**: ComfyUI from GitHub; model files from Comfy-Org, Black Forest Labs and QuantStack on Hugging Face. **Everything is downloaded on Colab and takes no space on this computer.**
+5. **When to log in**: only the first time. You give them a Google link; they sign in with **the AI Pro account**, click Allow and paste the code shown back into the conversation.
 
-安裝：照 repo 的 `INSTALL_FOR_AGENTS.md`。登入：
+Install: follow the repo's `INSTALL_FOR_AGENTS.md`. Log in:
 ```
-python scripts/colab_login.py url          # 把網址給使用者
-python scripts/colab_login.py code <授權碼>  # 使用者貼回來之後
-python scripts/omrun.py check              # 看到剩餘運算單元＝成功
+python scripts/colab_login.py url          # give the link to the user
+python scripts/colab_login.py code <CODE>  # after they paste it back
+python scripts/omrun.py check              # seeing the remaining compute units = success
 ```
 
 ---
 
-## 1. 每次生成的流程
+## 1. The flow for each generation
 
-1. **問清楚要什麼**：幾張圖、幾段影片、誰的臉、什麼比例。
-2. **準備輸入檔**：角色照、場景圖放進一個工作資料夾，例如 `omcjob/inputs/`。
-3. **寫提示詞**：照 `references/prompt-guide.md`。
-4. **寫 `manifest.json`**：格式見 `references/manifest.md`。整批一次送，不要一個一個開機。
-5. **確認規格**：
-   - **兩支以上的影片，一定要先跟使用者確認規格**：解析度（480P／720P）、直式或橫式、每段秒數。
-     沒有 `--confirmed` 不會開機，它會先印出這批的摘要，給使用者看，確認後再加 `--confirmed`。
-   - 影片預設 720P（Wan 2.2 5B 訓練時的解析度）。480P 比較快，但畫質還沒實測。
-   - 第一次的批次先試一張圖和一段 3 秒影片，讓使用者看到真實的時間。
-   - L4 實測：改圖每張 9–12 秒；說話影片每秒成品約 32 秒（14.5 秒片長 7.7 分鐘）；5 秒延伸約 3.3 分鐘。
-6. **送出**：
+1. **Find out what is wanted**: how many pictures, how many clips, whose face, what aspect ratio.
+2. **Prepare the input files**: put character photos and scene images in a working folder, e.g. `omcjob/inputs/`.
+3. **Write the prompts**: follow `references/prompt-guide.md`.
+4. **Write `manifest.json`**: format in `references/manifest.md`. Send the whole batch at once; don't boot once per item.
+5. **Confirm the specs**:
+   - **For two or more videos, always confirm the specs with the user first**: resolution (480P / 720P), portrait or landscape, seconds per clip.
+     Without `--confirmed` nothing boots; it first prints a summary of the batch for the user to review, then add `--confirmed`.
+   - Video defaults to 720P (the resolution Wan 2.2 5B was trained at). 480P is faster, but its quality has not been tested.
+   - For the first batch, try one picture and one 3-second clip so the user sees the real time.
+   - Measured on L4: 9–12 s per edited image; a talking video takes about 32 s per second of output (7.7 minutes for 14.5 s); a 5 s extension about 3.3 minutes.
+6. **Send it**:
    ```
    python scripts/omrun.py run omcjob/manifest.json --gpu L4
    ```
-   它會開機 → 上傳 → 背景生成 → 每 30 秒回報 → 每完成一個就下載到 `omcjob/out/`。
-7. **檢查成果**：圖片打開看；影片至少抽幾格看；有錯就只重做那一個（改 prompt 或 seed）。
-8. **回報，並問使用者要不要保留 GPU**：每個檔案的路徑、花了多久、用了哪個 seed（在 `out/results.json`）。
-   做完之後 GPU **先留著 15 分鐘**（模型都還在上面）。一定要問一句：
-   「要繼續生成或修改嗎？要的話 GPU 先留著（L4 一小時約 1.5 點）；不用的話我現在關掉。」
-   - 要繼續 → 下一批加 `--session <名字>`，不用重新下載模型
-   - 要多留一下 → `python scripts/omrun.py keep --session <名字> --minutes 60`（最多 240）
-   - 不用了 → `python scripts/omrun.py stop --session <名字>`
-   - 使用者沒回答也沒關係：本機有獨立的計時器，15 分鐘沒有新工作就自動關掉。
-   - 確定只做一次：第 6 步加 `--stop-after`。中途失敗、被中斷的批次一律馬上關機。
+   It boots → uploads → generates in the background → reports every 30 s → downloads each result to `omcjob/out/` as it finishes.
+7. **Check the results**: open the pictures; sample at least a few frames of each video; if something is wrong, redo only that one (change the prompt or the seed).
+8. **Report, and ask whether to keep the GPU**: each file's path, how long it took, which seed was used (in `out/results.json`).
+   After finishing, the GPU is **kept for 15 minutes** (the models are still on it). Always ask:
+   "Do you want to generate or change anything else? If so I'll keep the GPU (L4 costs about 1.5 units an hour); if not I'll shut it down now."
+   - Continue → add `--session <name>` to the next batch; no model download needed
+   - Keep it longer → `python scripts/omrun.py keep --session <name> --minutes 60` (at most 240)
+   - Done → `python scripts/omrun.py stop --session <name>`
+   - No answer is fine: an independent local timer shuts it down after 15 minutes without new work.
+   - Certain it's a one-off: add `--stop-after` in step 6. Failed or interrupted batches always shut down immediately.
 
 ---
 
-## 2. 任務判準
+## 2. Job rules
 
-### 圖片
-- 沒有 `inputs` → 文生圖。`size`：`1K`（預設）、`1.5K`、`2K`（長邊像素）；`aspect` 預設 `1:1`。
-- 有 `inputs` → 編輯。第 1 張是**要被改的那張**，其餘是參考，最多 4 張。`aspect: "auto"`（預設）會跟第 1 張同比例。
-- 提示詞裡用「image 1」「image 2」指稱 `inputs` 的順序。
+### Images
+- No `inputs` → text to image. `size`: `1K` (default), `1.5K`, `2K` (long edge in pixels); `aspect` defaults to `1:1`.
+- With `inputs` → edit. Image 1 is **the one being changed**, the rest are references, at most 4. `aspect: "auto"` (default) keeps image 1's ratio.
+- In prompts, refer to the order of `inputs` as "image 1", "image 2".
 
-### 影片
-- 沒有 `inputs` → 文生影片；`inputs` 放 1 張圖 → 那張圖當第一格（會置中裁成影片比例）。
-- `seconds`：1–5（Wan 2.2 一段約 5 秒）。更長的片段用 `extend` 接在前一段之後。
-- `aspect`：`16:9`（預設）、`9:16`、`1:1`、`4:3`、`3:4`。
-- 影片**沒有聲音**。
-- 分鏡流程：先用 `image` 生出分鏡圖，再讓 `video` 用 `"inputs": ["@<圖片 id>"]` 接著動起來，一次開機做完。
+### Video
+- No `inputs` → text to video; 1 image in `inputs` → that image is the first frame (center-cropped to the video ratio).
+- `seconds`: 1–5 (a Wan 2.2 clip is about 5 s). For longer footage, use `extend` to continue after the previous clip.
+- `aspect`: `16:9` (default), `9:16`, `1:1`, `4:3`, `3:4`.
+- Video has **no sound**.
+- Storyboard flow: make the frames with `image` first, then animate them with `video` using `"inputs": ["@<image id>"]`, all in one boot.
 
-### 配音與說話影片
-- `tts` 的 `prompt` 是要念的台詞；`voice` 是聲音描述，**一定要寫性別和年齡**（例如「溫和的中年男性，語速適中，親切」）。
-  要複製某人的聲音，把錄音放 `voices`（1 段，3 秒以上），**只用本人或已同意的聲音**。
-- 中文台詞約每秒 3.4 字（實測 48 字念 14.2 秒）。要 5 秒的說話影片，台詞約 15–17 字。說話影片長度跟著語音走（每 4.8 秒一段，最後會裁到語音結束）。
-- `talk` 用 `"audio": "@<tts 的 id>"` 接上配音，`inputs` 放 1 張人物圖。預設 480P、3:4。14B 模型只能在 Colab（high 等級）跑。
-- 說話影片之後要接動作：下一個 `video` 寫 `"extend": "@<talk 的 id>"`，成品會是兩段接好的影片（延伸那段沒有聲音）。
+### Voice-over and talking video
+- The `tts` `prompt` is the line to speak; `voice` is the voice description and **must state gender and age** (e.g. "溫和的中年男性，語速適中，親切", a warm middle-aged man, moderate pace, friendly).
+  To clone someone's voice, put a recording in `voices` (1 clip, 3 s or longer); **only use the user's own voice or one whose owner has agreed**.
+- Mandarin lines run at about 3.4 characters per second (measured: 48 characters in 14.2 s). For a 5 s talking video, keep the line to about 15–17 characters. A talking video is as long as its speech (one chunk per 4.8 s, trimmed to where the speech ends).
+- `talk` takes the voice-over with `"audio": "@<tts id>"` and 1 portrait in `inputs`. Defaults to 480P, 3:4. The 14B model only runs on Colab (high tier).
+- To add motion after a talking video: the next `video` uses `"extend": "@<talk id>"`, and the result is both clips joined (the extension has no sound).
 
 ---
 
-## 3. 失敗時
+## 3. When something fails
 
-先看 `references/troubleshooting.md`。最常見：
-- 沒有登入／token 過期 → 重跑 `colab_login.py url`。
-- 點數不足、分配不到 GPU → 換 L4 或晚點再試；**不要**改成 A100（很貴）。
-- 某一段生成失敗 → 讀 `out/results.json` 的 error，只重送那一段（可以 `--session` 沿用還開著的機器）。
-- 本機顯存不夠（`out of memory`）→ 改 480P、縮短秒數，或 `--tier low`。
+Read `references/troubleshooting.md` first. Most common:
+- Not logged in / token expired → rerun `colab_login.py url`.
+- Not enough units or no GPU assigned → use L4 or try later; **do not** switch to A100 (very expensive).
+- One job failed → read its error in `out/results.json` and resend only that job (`--session` reuses a machine that is still running).
+- Not enough local VRAM (`out of memory`) → use 480P, shorten the clip, or `--tier low`.
 
-授權說明見 `references/licenses.md`。
+Licenses: see `references/licenses.md`.

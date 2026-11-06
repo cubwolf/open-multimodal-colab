@@ -1,29 +1,31 @@
-# 授權
+**English** | [繁體中文](licenses.zh-TW.md)
 
-這個 skill 只下載授權不要求在成品上標示模型名稱的模型。完整查證見專案的授權調查文件；這裡是摘要。
+# Licenses
 
-| 模型 | 用途 | 授權 | 生成內容要標示嗎 |
+This skill only downloads models whose licenses do not require the model name on what you make. The full research is in the project's license investigation document; this is the summary.
+
+| Model | Used for | License | Credit needed on outputs? |
 |---|---|---|---|
-| Z-Image-Turbo（Tongyi-MAI） | 文生圖 | Apache 2.0 | 不用 |
-| Qwen3-4B 文字編碼器 | Z-Image、FLUX.2 klein 共用 | Apache 2.0 | 不用 |
-| FLUX.2 [klein] 4B（Black Forest Labs） | 圖片編輯 | Apache 2.0（**只有 4B**；9B 與 [dev] 是非商用授權，不可換用） | 不用（但不可冒用 BFL／FLUX 商標） |
-| Wan 2.2 TI2V-5B（Wan-AI） | 影片 | Apache 2.0，官方不主張生成內容的權利 | 不用 |
-| UMT5-XXL 文字編碼器 | Wan 2.2 | Apache 2.0 | 不用 |
-| Wan 2.2 S2V-14B（Wan-AI） | 說話影片 | Apache 2.0，官方不主張生成內容的權利 | 不用 |
-| Wan2.2-Lightning（lightx2v 4 步 LoRA） | 說話影片加速 | Apache 2.0 | 不用 |
-| Qwen3-TTS 1.7B（Alibaba Qwen） | 配音 | Apache 2.0 | 不用 |
-| wav2vec2 large english（音訊編碼器） | 說話影片 | 待查證（Comfy-Org 重新打包，原始權重出處未確認） | — |
+| Z-Image-Turbo (Tongyi-MAI) | text to image | Apache 2.0 | no |
+| Qwen3-4B text encoder | shared by Z-Image and FLUX.2 klein | Apache 2.0 | no |
+| FLUX.2 [klein] 4B (Black Forest Labs) | image editing | Apache 2.0 (**4B only**; 9B and [dev] are non-commercial and must not be swapped in) | no (but do not misuse the BFL / FLUX trademarks) |
+| Wan 2.2 TI2V-5B (Wan-AI) | video | Apache 2.0; claims no rights over generated content | no |
+| UMT5-XXL text encoder | Wan 2.2 | Apache 2.0 | no |
+| Wan 2.2 S2V-14B (Wan-AI) | talking video | Apache 2.0; claims no rights over generated content | no |
+| Wan2.2-Lightning (lightx2v 4-step LoRA) | faster talking video | Apache 2.0 | no |
+| Qwen3-TTS 1.7B (Alibaba Qwen) | voice-over | Apache 2.0 | no |
+| wav2vec2 large english (audio encoder) | talking video | to be verified (repackaged by Comfy-Org; source of the original weights not confirmed) | — |
 
-複製聲音只用本人或已取得同意的聲音。
+Only clone your own voice or a voice whose owner has agreed.
 
-Apache 2.0 的要求只在**散布模型或程式碼本身**時才有（附上授權與 NOTICE），自己生成的圖片和影片不用署名。
+Apache 2.0 obligations apply only when you **distribute the model or the code itself** (include the license and NOTICE). Pictures and videos you generate need no credit.
 
-## 下載來源的授權
-- FLUX.2 的 VAE（`flux2-vae.safetensors`）從 `Comfy-Org/Flux-2-Klein-4B` 下載，這個 repo 標示 apache-2.0；BFL 官方 README 也寫明 autoencoder 以 Apache 2.0 釋出。
-  不要改從 `Comfy-Org/flux2-dev` 下載：那個 repo 標示的是非商用授權。
-- `black-forest-labs/FLUX.2-klein-4b-fp8` 標示 apache-2.0，沒有存取限制（2026-11-06 查）。
+## Licenses of the download sources
+- The FLUX.2 VAE (`flux2-vae.safetensors`) is downloaded from `Comfy-Org/Flux-2-Klein-4B`, which is marked apache-2.0; BFL's official README also states the autoencoder is released under Apache 2.0.
+  Do not download it from `Comfy-Org/flux2-dev` instead: that repo is marked with the non-commercial license.
+- `black-forest-labs/FLUX.2-klein-4b-fp8` is marked apache-2.0 and has no access gate (checked 2026-11-06).
 
-## 本程式
-- 本 repo 的程式：MIT（見 `LICENSE`）。
-- 調度骨架改寫自 dseditor/h3-colab-skill（MIT），登入流程依 google-colab-cli（Apache 2.0），見 `THIRD_PARTY_NOTICES.md`。
-- ComfyUI（GPL-3.0）與 ComfyUI-GGUF（Apache 2.0）是在 Colab 或使用者電腦上另外下載執行的，沒有包含在本 repo 裡。
+## This program
+- The code in this repo: MIT (see `LICENSE`).
+- The orchestration is adapted from dseditor/h3-colab-skill (MIT) and the login flow follows google-colab-cli (Apache 2.0); see `THIRD_PARTY_NOTICES.md`.
+- ComfyUI (GPL-3.0) and ComfyUI-GGUF (Apache 2.0) are downloaded and run separately on Colab or on the user's computer and are not included in this repo.
