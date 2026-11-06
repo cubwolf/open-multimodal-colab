@@ -1,0 +1,55 @@
+# Install guide for AI agents
+
+You were asked to install **open-multimodal-colab**. Follow these steps in order.
+
+## Step 1 — Tell the user first, and wait for "yes"
+
+Before installing anything, explain in the user's language:
+
+1. **What it does**: it lets you (the agent) generate and edit pictures and make short silent videos with
+   open models (Z-Image-Turbo, FLUX.2 klein 4B, Wan 2.2; Apache 2.0, no attribution on the output) on
+   **the user's own Google Colab GPU**. You write the prompts; Colab does the work;
+   the files come back to this computer; the GPU is released afterwards.
+2. **Subscription**: at least **Google AI Pro** (it includes Colab compute units). AI Plus is not enough.
+3. **Cost**: L4 ≈ 1.5 units per hour (about an RTX 4060), G4 ≈ 11 units per hour (about an RTX Pro 6000).
+   AI Pro gives about 400 units a month. Every start installs ComfyUI and downloads the models the batch needs
+   (about 13–18 GB per feature) **on Colab**, not on this computer.
+4. **What gets installed on this computer**: `uv`, Python 3.12 and Google's `google-colab-cli` 0.7.4
+   (an isolated tool), plus this skill folder. Nothing else.
+5. **Login**: once. You will show a Google sign-in link; the user signs in **with the AI Pro account**,
+   clicks Allow and pastes the code back to you.
+
+Also ask: **Colab, or their own ComfyUI Desktop (local mode)?** Local needs ComfyUI Desktop already installed
+and running (https://comfy.org/download), an NVIDIA GPU with 10 GB+ VRAM (an RTX 3060 12 GB works), 32 GB of system RAM recommended and about 35 GB of disk. In local mode
+there is no colab-cli, no login and no compute units: still run Step 2 (it copies the skill), skip Step 3, and
+follow the local section of `SKILL.md` (`scripts/omlocal.py check` -> `setup` -> `run`). No answer -> Colab.
+
+Only continue after the user agrees.
+
+## Step 2 — Install
+
+Clone (or download) `https://github.com/cubwolf/open-multimodal-colab`, then:
+
+- Windows (PowerShell): `powershell -ExecutionPolicy Bypass -File install\install.ps1`
+- macOS / Linux: `bash install/install.sh`
+
+Pass a folder as the first argument if your skills live somewhere unusual
+(e.g. `install.ps1 -SkillsDir C:\path\to\skills`). By default it copies the skill into every agent
+skills folder it finds: `~/.claude/skills`, `~/.codex/skills`, `~/.hermes/skills`, `~/.agents/skills`.
+
+## Step 3 — Login (needs the user)
+
+```
+python <skill>/scripts/colab_login.py url
+```
+Give the printed link to the user. When they paste the code:
+```
+python <skill>/scripts/colab_login.py code <CODE>
+python <skill>/scripts/omrun.py check
+```
+`check` prints the remaining compute units when everything works.
+
+## Step 4 — First run
+
+Read `<skill>/SKILL.md`. Make a tiny first batch (one picture and one 3-second video on L4) so the user sees the
+whole loop and the real time on their account before anything bigger.
