@@ -1,60 +1,62 @@
-# 排錯
+**English** | [繁體中文](troubleshooting.zh-TW.md)
 
-先跑 `python scripts/omrun.py check`，看三件事：colab 指令在不在、有沒有登入、剩幾點。
+# Troubleshooting
 
-## 一定要記得的：沒關的 GPU 會一直扣點
-- `omrun.py run` 順利做完時，GPU 先留 15 分鐘（`--idle-minutes`）等下一批，由本機的獨立計時器到時自動 `stop`；失敗或中斷的批次馬上 `stop`。計時器的紀錄在 `~/.config/omcskill/keep/<session>.log`。
-- 本機程式被強制中斷、電腦睡著、網路斷掉時，**遠端那台不會自己停**。回來第一件事：
+Run `python scripts/omrun.py check` first. It shows three things: whether the colab command exists, whether you are logged in, and how many units are left.
+
+## The one thing to remember: a GPU left running keeps using units
+- When `omrun.py run` finishes normally, the GPU is kept for 15 minutes (`--idle-minutes`) for the next batch, and an independent local timer runs `stop` when it expires. Failed or interrupted batches `stop` immediately. The timer log is in `~/.config/omcskill/keep/<session>.log`.
+- If the local program is killed, the computer sleeps or the network drops, **the remote machine does not stop by itself**. First thing when you come back:
   ```
   python scripts/omrun.py sessions
   python scripts/omrun.py stop --all
   ```
-- 對話結束前，確認 `sessions` 是空的。
+- Before the conversation ends, make sure `sessions` is empty.
 
-## 安裝與登入
-| 症狀 | 原因與處理 |
+## Install and login
+| Symptom | Cause and fix |
 |---|---|
-| `No module named 'termios'`（Windows） | colab-cli 的互動終端只支援 Linux／macOS。安裝腳本會打補丁；手動處理：重跑 `install/install.ps1` |
-| `WebSocketConnectionClosedException: socket is already closed`（Windows） | colab-cli 0.7.5 的問題。安裝腳本固定裝 **0.7.4** |
-| `colab` 指令跑起來先去檢查更新、卡住 | `~/.config/colab-cli/settings.json` 寫 `{"enable_update_check": false}`（安裝腳本會寫） |
-| 登入後 `redirect_uri_mismatch` | 一定要用 `colab_login.py`（它用 colab-cli 自己的 client 與 redirect），不要自己拼網址 |
-| `invalid_grant` | 授權碼只能用一次、幾分鐘內有效：重跑 `colab_login.py url` |
-| 換帳號 | 刪掉 `~/.config/colab-cli/token.json` 再登入 |
+| `No module named 'termios'` (Windows) | colab-cli's interactive terminal only supports Linux / macOS. The install script patches it; to fix by hand, rerun `install/install.ps1` |
+| `WebSocketConnectionClosedException: socket is already closed` (Windows) | A colab-cli 0.7.5 problem. The install script pins **0.7.4** |
+| `colab` checks for updates first and hangs | Write `{"enable_update_check": false}` to `~/.config/colab-cli/settings.json` (the install script does this) |
+| `redirect_uri_mismatch` after login | Always use `colab_login.py` (it uses colab-cli's own client and redirect); don't build the URL yourself |
+| `invalid_grant` | The code works once and only for a few minutes: rerun `colab_login.py url` |
+| Switching accounts | Delete `~/.config/colab-cli/token.json` and log in again |
 
-## 開機
-| 症狀 | 處理 |
+## Boot
+| Symptom | Fix |
 |---|---|
-| 點數夠卻分配不到 GPU | 尖峰時段常見。等幾分鐘再試，或改 L4／G4。**不要改 A100**（貴很多） |
-| GPU 名字打錯 | colab-cli 會默默開成 A100。`omrun.py` 只接受 L4、G4、A100、H100 |
-| `GPU capability ... has no bf16` | 拿到 T4（太舊），換 L4 以上 |
-| `沒有登入`／`401` | token 過期或被撤銷：重跑登入 |
+| Enough units but no GPU assigned | Common at peak times. Wait a few minutes and retry, or switch between L4 / G4. **Do not switch to A100** (much more expensive) |
+| GPU name mistyped | colab-cli silently starts an A100. `omrun.py` only accepts L4, G4, A100, H100 |
+| `GPU capability ... has no bf16` | You got a T4 (too old); use L4 or better |
+| `沒有登入` (not logged in) / `401` | The token expired or was revoked: log in again |
 
-## 生成
-| 症狀 | 處理 |
+## Generation
+| Symptom | Fix |
 |---|---|
-| 一段失敗，其他成功 | 看 `out/results.json` 那一段的 `error`；只重送那一段（可加 `--session` 沿用還開著的機器） |
-| `that job has not produced a file` | `@id` 指向的 job 排在後面或失敗了 |
-| 影片動作很少、像照片在晃 | 提示詞寫清楚主體的動作與鏡頭運動；或換 seed |
-| 圖片編輯沒有照參考圖 | 提示詞裡明確說「image 1 的人」「image 2 的背景」；要改的那張放第一張 |
-| 本機 `out of memory` | 改 480P、縮短秒數；確認 `check` 判斷的是 `low` 等級；關掉其他吃顯存的程式 |
-| 本機 `UnetLoaderGGUF` 不認得 | `setup` 裝的 ComfyUI-GGUF 還沒裝套件或沒重開 ComfyUI：照 `setup` 印出的指令做 |
-| 進度一直停在 `models` | 第一次要下載這批需要的模型（每種功能約 13–18 GB，說話影片約 26 GB）；超過 15 分鐘看 Hugging Face 狀態 |
-| 配音失敗：`No module named ensurepip` 或 `torchvision::nms does not exist` | 舊版的安裝方式造成的，這版已改用 uv 而且不動 torch。還是失敗就刪掉 `/content/ttsenv` 再跑 |
-| 說話影片比預期長 | 片長跟著語音走；縮短台詞 |
+| One job failed, the others succeeded | Read that job's `error` in `out/results.json`; resend only that job (add `--session` to reuse a machine that is still running) |
+| `that job has not produced a file` | The job referenced by `@id` comes later or failed |
+| The video barely moves, like a photo wobbling | Describe the subject's action and the camera movement clearly; or change the seed |
+| The edit ignores the reference image | Say "the person in image 1", "the background of image 2" explicitly; put the image to change first |
+| Local `out of memory` | Use 480P, shorten the clip; check that `check` chose the `low` tier; close other programs using VRAM |
+| Local `UnetLoaderGGUF` not recognized | The ComfyUI-GGUF nodes from `setup` are missing their packages or ComfyUI was not restarted: follow the commands `setup` printed |
+| Progress stuck at `models` | The first run downloads the models this batch needs (about 13–18 GB per feature, about 26 GB for talking video); after 15 minutes, check Hugging Face's status |
+| Voice-over fails: `No module named ensurepip` or `torchvision::nms does not exist` | Caused by the old install method; this version uses uv and leaves torch alone. If it still fails, delete `/content/ttsenv` and run again |
+| The talking video is longer than expected | Its length follows the speech; shorten the line |
 
-## 想看遠端的完整紀錄
+## Reading the full remote log
 ```
-colab exec -s <session> -f <一個只有 print(open('/content/omcjob/remote_job.log').read()[-5000:]) 的檔案>
+colab exec -s <session> -f <a file containing only print(open('/content/omcjob/remote_job.log').read()[-5000:])>
 ```
-ComfyUI 的紀錄在 `/content/comfyui.log`。本機模式的紀錄在工作資料夾的 `.omclocal/runner.log`。
+The ComfyUI log is in `/content/comfyui.log`. In local mode the log is `.omclocal/runner.log` in the working folder.
 
-## 檔案回傳
-- 預設用 `colab download` 一個一個抓（圖片、短片都很小）。
-- **不要**把影片轉成文字印在 log 裡傳回來，會慢幾十分鐘而且一直扣點。
-- 檔案很多或很大時：如果你（Agent）本身有連 Google 雲端硬碟，可以讓遠端先把 `out/` 複製到雲端硬碟再用你的連接器取。
-  這需要在 Colab 上授權雲端硬碟（`colab drivemount` 會在 VM 上跳出瀏覽器授權，10 分鐘內要完成），所以只在真的需要時才用。
+## Getting files back
+- By default files are fetched one by one with `colab download` (pictures and short clips are small).
+- **Do not** turn a video into text and print it in the log to bring it back; it is tens of minutes slower and keeps using units.
+- For many or large files: if you (the agent) are connected to Google Drive, the remote side can copy `out/` to Drive first and you fetch it with your connector.
+  This needs Drive authorization on Colab (`colab drivemount` opens a browser authorization on the VM that must be completed within 10 minutes), so only use it when really needed.
 
-## 參考過的前人經驗
-- dseditor/h3-colab-skill（MIT）：這個 skill 的調度骨架來源。
-- bockybocky/colab-gpu-runner（MIT）：Windows 上固定 0.7.4＋補丁、短 exec 比長 exec 穩、結束一定檢查殘留 runtime、不要用 log 傳檔。
-- Google 的 google-colab-cli（Apache-2.0）：登入流程（client、scope、redirect）照它的 `auth.py`。
+## Prior work we learned from
+- dseditor/h3-colab-skill (MIT): the source of this skill's orchestration.
+- bockybocky/colab-gpu-runner (MIT): pin 0.7.4 plus the patch on Windows, short execs are more stable than long ones, always check for leftover runtimes at the end, don't move files through the log.
+- Google's google-colab-cli (Apache-2.0): the login flow (client, scope, redirect) follows its `auth.py`.
